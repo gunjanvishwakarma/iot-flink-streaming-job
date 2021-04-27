@@ -53,7 +53,7 @@ public class IoTStreamingJob {
                     @Override
                     public void apply(TimeWindow timeWindow, Iterable<FlinkDevicePayload> iterable, Collector<Tuple2<Long, Long>> collector) throws Exception {
                         iterable.forEach(flinkDevicePayload -> {
-                            final Double temperature = (Double) flinkDevicePayload.getPayloadJson().get("temperature");
+                            final Double temperature = Double.valueOf(String.valueOf(flinkDevicePayload.getPayloadJson().get("temperature")));
                             totalTemp += temperature;
                             count++;
                         });
