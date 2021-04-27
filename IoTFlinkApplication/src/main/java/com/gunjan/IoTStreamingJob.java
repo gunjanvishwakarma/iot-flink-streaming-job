@@ -1,4 +1,4 @@
-package com.amazonaws.services.kinesisanalytics;
+package com.gunjan;
 
 import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;

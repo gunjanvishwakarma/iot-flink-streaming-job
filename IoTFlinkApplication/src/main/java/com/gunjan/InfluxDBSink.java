@@ -1,4 +1,4 @@
-package com.amazonaws.services.kinesisanalytics;
+package com.gunjan;
 
 import com.amazonaws.services.kinesisanalytics.runtime.KinesisAnalyticsRuntime;
 import com.influxdb.client.InfluxDBClient;
