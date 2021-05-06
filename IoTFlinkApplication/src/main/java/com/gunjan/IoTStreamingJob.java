@@ -7,11 +7,13 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 import org.apache.flink.streaming.api.functions.windowing.AllWindowFunction;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.triggers.ContinuousProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.util.Collector;
@@ -36,8 +38,15 @@ public class IoTStreamingJob {
 
     public static void main(String[] args) throws Exception {
 
+        Properties properties = new Properties();
+        properties.setProperty("bootstrap.servers", "localhost:9092");
+        properties.setProperty("group.id", "flink");
+
+        FlinkKafkaConsumer<String> consumer = new FlinkKafkaConsumer<>("test", new SimpleStringSchema(), properties);
+
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        createSourceFromStaticConfig(env)
+        env.addSource(consumer)
+        //createSourceFromStaticConfig(env)
                 .map((MapFunction<String, FlinkDevicePayload>) payload -> new ObjectMapper().readValue(payload, FlinkDevicePayload.class))
                 .assignTimestampsAndWatermarks(new BoundedOutOfOrdernessTimestampExtractor<FlinkDevicePayload>(Time.seconds(300)) {
                     @Override
@@ -63,7 +72,13 @@ public class IoTStreamingJob {
                     }
                 }).map((MapFunction<Tuple2<Long, Long>, Point>) longLongTuple2 -> Point.measurement("avg_temperature")
                         .addField("value", String.valueOf(longLongTuple2._1))
-                        .addField("time", longLongTuple2._2)).addSink(new InfluxDBSink());
+                        //.addField("time", longLongTuple2._2)).addSink(new InfluxDBSink());
+                        .addField("time", longLongTuple2._2)).addSink(new SinkFunction<Point>() {
+            @Override
+            public void invoke(Point value, Context context) throws Exception {
+                System.out.println(value.toLineProtocol());
+            }
+        });
 
         env.execute("IoTDataProcessing");
     }

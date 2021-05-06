@@ -27,6 +27,7 @@ public class InfluxDBSink extends RichSinkFunction<Point> {
 
     @Override
     public void invoke(Point value, Context context) throws Exception {
+        System.out.println(value);
         final WriteApi writeApi1 = influxDBClient.getWriteApi();
         try (WriteApi writeApi = writeApi1) {
             writeApi.writePoint(value);
