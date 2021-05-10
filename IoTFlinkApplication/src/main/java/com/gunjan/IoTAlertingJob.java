@@ -64,11 +64,17 @@ public class IoTAlertingJob {
         properties.setProperty("group.id", "flink");
 
         FlinkKafkaConsumer<String> devicePayloadConsumer = new FlinkKafkaConsumer<>("test", new SimpleStringSchema(), properties);
+
+
+
+
         FlinkKafkaConsumer<String> templateConsumer = new FlinkKafkaConsumer<>("template", new SimpleStringSchema(), properties);
 
 
         final StreamExecutionEnvironment executionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
         final DataStreamSource<String> devicePayloadDataStreamSource = executionEnvironment.addSource(devicePayloadConsumer);
+
+
         KeyedStream<FlinkDevicePayload, String> devicePayloadKeyedByDevEuiStream = devicePayloadDataStreamSource
                 .map((MapFunction<String, FlinkDevicePayload>) payload -> new ObjectMapper().readValue(payload, FlinkDevicePayload.class))
                 .keyBy((KeySelector<FlinkDevicePayload, String>) flinkDevicePayload -> flinkDevicePayload.getId().toString());
@@ -304,7 +310,7 @@ public class IoTAlertingJob {
         @Override
         public Point map(Tuple2<Timestamp,Long> tweetPerSecond) throws Exception
         {
-            return Point.measurement("TweetPerSecondCountFlink").time(tweetPerSecond.f0.getTime(), WritePrecision.MS)
+            return Point.measurement("DevicePerSecondCountFlink").time(tweetPerSecond.f0.getTime(), WritePrecision.MS)
                     .addField("count", tweetPerSecond.f1);
         }
     }
