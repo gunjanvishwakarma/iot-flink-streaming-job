@@ -34,6 +34,8 @@ public class AlertPayload {
 
         String devEui;
 
+        String deviceName;
+
         @Override
         public String toString() {
                 return "AlertPayload{" +
