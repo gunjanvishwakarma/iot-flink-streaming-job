@@ -17,6 +17,7 @@ import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -46,7 +47,7 @@ import java.util.stream.Collectors;
  * A basic Kinesis Data Analytics for Java application with Kinesis data
  * streams as source and sink.
  */
-public class IoTAlertingJob {
+public class IoTAlertingJob_V2 {
     private static final String region = "us-west-2";
     private static final String inputStreamName = "ExampleInputStream";
 
@@ -112,6 +113,15 @@ public class IoTAlertingJob {
                                             TypeInformation.of(new TypeHint<Template>() {
                                             }));
 
+                            private transient ValueState<Boolean> isAlarmExist;
+
+                            @Override
+                            public void open(Configuration conf) throws IOException {
+                                // setup timer state
+                                ValueStateDescriptor<Boolean> lastTimerDesc = new ValueStateDescriptor<Boolean>("isAlarmExist", Types.BOOLEAN, false);
+                                isAlarmExist = getRuntimeContext().getState(lastTimerDesc);
+                            }
+
                             @Override
                             public void processElement(FlinkDevicePayload flinkDevicePayload, ReadOnlyContext readOnlyContext, Collector<AlertPayload> out) throws Exception {
                                 for (Map.Entry<String, Template> entry :
@@ -119,28 +129,55 @@ public class IoTAlertingJob {
                                     final String sensorUuid = entry.getKey();
                                     if (sensorUuid != null && sensorUuid.equals(flinkDevicePayload.getId().toString())) {
                                         Template template = entry.getValue();
-                                        template.getAlerts().forEach(new Consumer<Alert>() {
+                                        template.getAlerts()
+                                                .stream().filter(new Predicate<Alert>() {
+                                            @Override
+                                            public boolean test(Alert alert) {
+                                                return !alert.getName().equals("Sensor unreachable");
+                                            }
+                                        })
+                                                .forEach(new Consumer<Alert>() {
                                             @Override
                                             public void accept(Alert alert) {
                                                 String condition = alert.getAdditionalAttributes().get("condition");
                                                 try {
                                                     if (isCreateAlarm(condition, flinkDevicePayload)) {
-                                                        String attributeName = condition.split(" ")[0].trim();
-                                                        final AlertPayload alertPayload = AlertPayload.builder()
-                                                                .devEui(flinkDevicePayload.getDevEUI())
-                                                                .alarmName(alert.getName())
-                                                                .expression(condition)
-                                                                .currentValue(getCurrentValue(flinkDevicePayload, attributeName))
-                                                                .entityType("Sensor")
-                                                                .isCreated(true)
-                                                                .deviceName(flinkDevicePayload.getName())
-                                                                .emails(alert.getAlertNotification() != null ? alert.getAlertNotification().getEmailsToNotify() : null)
-                                                                .phoneNumbers(alert.getAlertNotification() != null ? alert.getAlertNotification().getPhoneNumbersToNotify() : null).build();
-                                                        out.collect(alertPayload);
+                                                        if(!isAlarmExist.value()){
+                                                            String attributeName = condition.split(" ")[0].trim();
+                                                            final AlertPayload alertPayload = AlertPayload.builder()
+                                                                    .devEui(flinkDevicePayload.getDevEUI())
+                                                                    .alarmName(alert.getName())
+                                                                    .expression(condition)
+                                                                    .currentValue(getCurrentValue(flinkDevicePayload, attributeName))
+                                                                    .entityType("Sensor")
+                                                                    .isCreated(true)
+                                                                    .deviceName(flinkDevicePayload.getName())
+                                                                    .emails(alert.getAlertNotification() != null ? alert.getAlertNotification().getEmailsToNotify() : null)
+                                                                    .phoneNumbers(alert.getAlertNotification() != null ? alert.getAlertNotification().getPhoneNumbersToNotify() : null).build();
+                                                            out.collect(alertPayload);
+                                                            isAlarmExist.update(true);
+                                                        }
+
+                                                    } else {
+                                                        if(isAlarmExist.value()){
+                                                            String attributeName = condition.split(" ")[0].trim();
+                                                            final AlertPayload alertPayload = AlertPayload.builder()
+                                                                    .devEui(flinkDevicePayload.getDevEUI())
+                                                                    .alarmName(alert.getName())
+                                                                    .expression(condition)
+                                                                    .currentValue(getCurrentValue(flinkDevicePayload, attributeName))
+                                                                    .entityType("Sensor")
+                                                                    .isCreated(false)
+                                                                    .deviceName(flinkDevicePayload.getName())
+                                                                    .emails(alert.getAlertNotification() != null ? alert.getAlertNotification().getEmailsToNotify() : null)
+                                                                    .phoneNumbers(alert.getAlertNotification() != null ? alert.getAlertNotification().getPhoneNumbersToNotify() : null).build();
+                                                            out.collect(alertPayload);
+                                                            isAlarmExist.update(false);
+                                                        }
                                                     }
                                                 } catch (ScriptException e) {
                                                     e.printStackTrace();
-                                                } catch (JsonProcessingException e) {
+                                                } catch (IOException e) {
                                                     e.printStackTrace();
                                                 }
                                             }
@@ -152,8 +189,10 @@ public class IoTAlertingJob {
                             @Override
                             public void processBroadcastElement(Template template, Context context, Collector<AlertPayload> collector) throws Exception {
                                 final List<UUID> devices = template.getDevices();
-                                for (UUID uuid : devices) {
-                                    context.getBroadcastState(templateStateDescriptor).put(uuid.toString(), template);
+                                if (devices != null) {
+                                    for (UUID uuid : devices) {
+                                        context.getBroadcastState(templateStateDescriptor).put(uuid.toString(), template);
+                                    }
                                 }
                             }
                         }

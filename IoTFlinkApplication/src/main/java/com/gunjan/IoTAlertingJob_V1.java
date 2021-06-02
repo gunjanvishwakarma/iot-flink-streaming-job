@@ -25,7 +25,7 @@ import java.util.Properties;
  * A basic Kinesis Data Analytics for Java application with Kinesis data
  * streams as source and sink.
  */
-public class IoTStreamingJob {
+public class IoTAlertingJob_V1 {
     private static final String region = "us-west-2";
     private static final String inputStreamName = "ExampleInputStream";
 
