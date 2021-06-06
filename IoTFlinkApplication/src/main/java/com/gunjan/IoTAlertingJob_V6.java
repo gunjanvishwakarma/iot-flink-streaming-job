@@ -19,13 +19,10 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
-import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
-import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
-import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
 import org.apache.flink.util.Collector;
 import org.jetbrains.annotations.NotNull;
 
@@ -67,10 +64,13 @@ public class IoTAlertingJob_V6 {
                 .process(getDynamicAlertFunction())
                 .map((MapFunction<JsonObject, Point>) payload -> Point.measurement("alarm")
                         .addField("name", payload.get("name").getAsString())
-                        .addField("description", payload.get("description").getAsString())
-                        .addField("severity", payload.get("severity").getAsString())
+                        //.addField("description", payload.get("description").getAsString())
+                        //.addField("severity", payload.get("severity").getAsString())
                         .addField("jsonPath", payload.get("jsonPath").getAsString())
-                        .addField("devicePayload", payload.get("devicePayload").getAsString())).addSink(new InfluxDBSink());
+                        .addField("windowSize", payload.get("windowSize").getAsString())
+                        //.addField("devicePayload", payload.get("devicePayload").getAsString())
+                        )
+                        .addSink(new InfluxDBSink());
 
 
         executionEnvironment.execute("IoTDataProcessing");
@@ -99,13 +99,40 @@ public class IoTAlertingJob_V6 {
                     ReadOnlyBroadcastState<String, JsonObject> rulesState,
                     Collector<Keyed<JsonObject, String, String>> out)
                     throws Exception {
+                HashMap<String,Keyed> keys = new HashMap<>();
                 for (Map.Entry<String, JsonObject> entry : rulesState.immutableEntries()) {
                     final JsonObject rule = entry.getValue();
                     final JsonArray groupBy = rule.get("groupBy").getAsJsonArray();
                     List<String> list = new ArrayList<>();
                     groupBy.forEach(jsonElement -> list.add(jsonElement.getAsString()));
-                    out.collect(new Keyed<>(event, KeysExtractor.getKey(list, event), rule.get("ruleId").getAsString()));
+
+                    final JsonArray devices = rule.get("devices").getAsJsonArray();
+                    List<String> deviceList = new ArrayList<>();
+                    devices.forEach(jsonElement -> deviceList.add(jsonElement.getAsString()));
+
+                    final String devEUI = event.get("devEUI").getAsString();
+
+                    final String key = KeysExtractor.getKey(list, null);
+                    final Keyed s = keys.get(key);
+                    final String ruleId = rule.get("ruleId").getAsString();
+                    if(deviceList.contains(devEUI)){
+                        if(s == null){
+                            final List<String> ids = new ArrayList<>();
+                            ids.add(ruleId);
+                            final Keyed<JsonObject, String, String> t = new Keyed<>(event, key, ids);
+                            keys.put(key, t);
+                        } else {
+                            final List ids = s.getRuleIds();
+                            ids.add(ruleId);
+                        }
+                    }
                 }
+
+                final Collection<Keyed> values = keys.values();
+                values.forEach(keyed -> {
+                    out.collect(keyed);
+                });
+
             }
 
             @Override
@@ -167,62 +194,78 @@ public class IoTAlertingJob_V6 {
                 long cleanupTime = (currentEventTime / 1000) * 1000;
                 readOnlyContext.timerService().registerProcessingTimeTimer(cleanupTime);
 
-                JsonObject alertDetail = readOnlyContext.getBroadcastState(alertsDescriptor).get(jsonObjectStringStringKeyed.getId());
+                final List<String> ids = jsonObjectStringStringKeyed.getRuleIds();
+                ids.forEach(new Consumer<String>() {
+                    @SneakyThrows
+                    @Override
+                    public void accept(String id) {
+                        JsonObject alertDetail = readOnlyContext.getBroadcastState(alertsDescriptor).get(id);
 
-                final JsonElement windowSize = alertDetail.get("windowSize");
+                        final JsonElement windowSize = alertDetail.get("windowSize");
 
-                List<String> devicesDevEui = new ArrayList<>();
-                final JsonArray devices = alertDetail.get("devices").getAsJsonArray();
-                devices.forEach(jsonElement -> devicesDevEui.add(jsonElement.getAsString()));
+                        List<String> devicesDevEui = new ArrayList<>();
+                        final JsonArray devices = alertDetail.get("devices").getAsJsonArray();
+                        devices.forEach(jsonElement -> devicesDevEui.add(jsonElement.getAsString()));
 
-                JsonObject payloads = new JsonObject();
-                if (windowSize != null) {
-                    Long windowStartForEvent = (currentEventTime - windowSize.getAsInt());
+                        JsonObject payloads = new JsonObject();
+                        int noOfPayload = 0;
+                        if (windowSize != null) {
+                            Long windowStartForEvent = (currentEventTime - windowSize.getAsInt());
 
-                    JsonArray jsonArray = new JsonArray();
-                    for (Long stateEventTime : windowState.keys()) {
-                        final JsonObject element = windowState.get(stateEventTime);
-                        if (isStateValueInWindow(stateEventTime, windowStartForEvent, currentEventTime) && devicesDevEui.contains(element.get("devEUI").getAsString())) {
-                            jsonArray.add(element);
-                        }
-                    }
-                    payloads.add("payloads", jsonArray);
-                } else {
-                    final JsonElement eventCount = alertDetail.get("eventCount");
-                    if (eventCount != null) {
-                        JsonArray jsonArray = new JsonArray();
+                            JsonArray jsonArray = new JsonArray();
 
-                        int count = eventCount.getAsInt();
-                        final List<Long> sorted = StreamSupport.stream(windowState.keys().spliterator(), false)
-                                .sorted(Comparator.reverseOrder()).collect(Collectors.toList());
+                            for (Long stateEventTime : windowState.keys()) {
+                                final JsonObject element = windowState.get(stateEventTime);
+                                if (isStateValueInWindow(stateEventTime, windowStartForEvent, currentEventTime) && devicesDevEui.contains(element.get("devEUI").getAsString())) {
+                                    jsonArray.add(element);
+                                    noOfPayload++;
+                                }
+                            }
+                            payloads.add("payloads", jsonArray);
+                        } else {
+                            final JsonElement eventCount = alertDetail.get("eventCount");
+                            if (eventCount != null) {
+                                JsonArray jsonArray = new JsonArray();
 
-                        for (Long aLong : sorted) {
-                            jsonArray.add(windowState.get(aLong));
-                            count--;
-                            if (count == 0) {
-                                break;
+                                int count = eventCount.getAsInt();
+                                final List<Long> sorted = StreamSupport.stream(windowState.keys().spliterator(), false)
+                                        .sorted(Comparator.reverseOrder()).collect(Collectors.toList());
+
+                                for (Long aLong : sorted) {
+                                    jsonArray.add(windowState.get(aLong));
+                                    noOfPayload++;
+                                    count--;
+                                    if (count == 0) {
+                                        break;
+                                    }
+                                }
+                                payloads.add("payloads", jsonArray);
                             }
                         }
-                        payloads.add("payloads", jsonArray);
-                    }
-                }
 
-                final Boolean isCreateAlarm;
-                try {
-                    isCreateAlarm = JsonPath.from(payloads.toString()).get(alertDetail.get("jsonPath").getAsString());
-                    if (isCreateAlarm) {
-                        JsonObject jsonObject = new JsonObject();
-                        jsonObject.addProperty("name", alertDetail.get("name").getAsString());
-                        jsonObject.addProperty("description", alertDetail.get("description").getAsString());
-                        jsonObject.addProperty("severity", alertDetail.get("severity").getAsString());
-                        jsonObject.addProperty("jsonPath", alertDetail.get("jsonPath").getAsString());
-                        jsonObject.addProperty("devicePayload", payloads.toString());
-                        System.out.println(jsonObject);
-                        collector.collect(jsonObject);
+                        final Boolean isCreateAlarm;
+                        try {
+
+                            //System.out.println("payloads -> " + payloads);
+                            //System.out.println("jsonPath -> " + alertDetail.get("jsonPath"));
+
+                            isCreateAlarm = JsonPath.from(payloads.toString()).get(alertDetail.get("jsonPath").getAsString());
+                            if (isCreateAlarm) {
+                                JsonObject jsonObject = new JsonObject();
+                                jsonObject.addProperty("name", alertDetail.get("name").getAsString());
+                                jsonObject.addProperty("description", alertDetail.get("description").getAsString());
+                                jsonObject.addProperty("severity", alertDetail.get("severity").getAsString());
+                                jsonObject.addProperty("jsonPath", alertDetail.get("jsonPath").getAsString());
+                                jsonObject.addProperty("windowSize", noOfPayload);
+                                jsonObject.addProperty("devicePayload", payloads.toString());
+                                collector.collect(jsonObject);
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+                });
+
             }
 
             @Override
@@ -232,7 +275,6 @@ public class IoTAlertingJob_V6 {
                     final JsonObject asJsonObject = jsonElement.getAsJsonObject();
                     context.getBroadcastState(alertsDescriptor).put(asJsonObject.get("ruleId").getAsString(), asJsonObject);
                 }
-
                 updateWidestWindowRule(jsonObject,  context);
             }
 

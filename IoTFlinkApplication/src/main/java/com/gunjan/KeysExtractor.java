@@ -1,61 +1,34 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.gunjan;
 
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import io.restassured.path.json.JsonPath;
 
 import java.util.Iterator;
 import java.util.List;
 
-/** Utilities for dynamic keys extraction by field name. */
 public class KeysExtractor {
 
-  /**
-   * Extracts and concatenates field values by names.
-   *
-   * @param keyNames list of field names
-   * @param object target for values extraction
-   */
-  public static String getKey(List<String> keyNames, JsonObject object)
-      throws NoSuchFieldException, IllegalAccessException {
-    StringBuilder sb = new StringBuilder();
-    sb.append("{");
-    if (keyNames.size() > 0) {
-      Iterator<String> it = keyNames.iterator();
-      appendKeyValue(sb, object, it.next());
+    public static String getKey(List<String> groupingKeyJsonPaths, Event object)
+            throws NoSuchFieldException, IllegalAccessException {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{");
+        if (groupingKeyJsonPaths.size() > 0) {
+            Iterator<String> it = groupingKeyJsonPaths.iterator();
+            appendKeyValue(sb, object, it.next());
 
-      while (it.hasNext()) {
-        sb.append(";");
-        appendKeyValue(sb, object, it.next());
-      }
+            while (it.hasNext()) {
+                sb.append(";");
+                appendKeyValue(sb, object, it.next());
+            }
+        }
+        sb.append("}");
+        return sb.toString();
     }
-    sb.append("}");
-    return sb.toString();
-  }
 
-  private static void appendKeyValue(StringBuilder sb, JsonObject devicePayload, String fieldName)
-      throws IllegalAccessException, NoSuchFieldException {
-      final String fieldValue = devicePayload.getAsJsonObject().get(fieldName).getAsString();
-      sb.append(fieldName);
-    sb.append("=");
-    sb.append(fieldValue);
-  }
+    private static void appendKeyValue(StringBuilder sb, Event devicePayload, String groupingKeyJsonPath)
+            throws IllegalAccessException, NoSuchFieldException {
+        final String fieldValue = JsonPath.from(devicePayload.getPayload().toString()).get(groupingKeyJsonPath);
+        sb.append(groupingKeyJsonPath);
+        sb.append("=");
+        sb.append(fieldValue);
+    }
 }
