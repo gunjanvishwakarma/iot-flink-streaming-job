@@ -17,33 +17,40 @@ import java.util.List;
         "windowSize",
         "eventCount",
         "ruleCondition",
-        "name",
-        "description",
-        "severity",
         "devices",
-        "deviceIdJsonPath"
+        "deviceIdJsonPath",
+        "detail"
 })
 @Data
 @EqualsAndHashCode(callSuper = false)
-class Rule {
+public class Rule {
     @JsonProperty("ruleId")
     private Integer ruleId;
+
     @JsonProperty("groupingKeyJsonPaths")
     private List<String> groupingKeyJsonPaths;
+
     @JsonProperty("windowSize")
     private Long windowSize;
+
     @JsonProperty("eventCount")
     private Long eventCount;
+
     @JsonProperty("ruleConditionJsonPath")
     private String ruleConditionJsonPath;
-    @JsonProperty("name")
-    private String name;
-    @JsonProperty("description")
-    private String description;
-    @JsonProperty("severity")
-    private String severity;
+
     @JsonProperty("devices")
     private List<String> devices;
+
     @JsonProperty("deviceIdJsonPath")
     private String deviceIdJsonPath;
+
+    @JsonProperty("detail")
+    private String detail;
+
+    @JsonProperty("ruleType")
+    private String ruleType;
+
+    @JsonProperty("timeout")
+    private String timeout;
 }

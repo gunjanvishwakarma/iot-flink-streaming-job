@@ -1,0 +1,274 @@
+{
+  "data" : [
+    {
+      "ruleConditionJsonPath": "payloads.object.find { true }.inactivityTimeout > 1450",
+      "deviceIdJsonPath": "devEUI",
+      "devices": [
+        "1000000000000001",
+        "1000000000000002",
+        "1000000000000003",
+        "1000000000000004",
+        "1000000000000005",
+        "1000000000000006",
+        "1000000000000007",
+        "1000000000000008"
+      ],
+      "groupingKeyJsonPaths": [
+        "devEUI"
+      ],
+      "eventCount": 1,
+      "detail": "{\n  \"severity\": \"MAJOR\",\n  \"name\": \"Sensor unreachable\",\n  \"description\": \"Sensor unreachable\",\n  \"devEui\": \"@ devEUI @\"\n}",
+      "ruleId": 100,
+      "timeout": 60000,
+      "ruleType" : "unreachable"
+    },
+    {
+      "ruleConditionJsonPath": "payloads.object.collect { it.temperature.toDouble()}.sum() > 5",
+      "deviceIdJsonPath": "devEUI",
+      "windowSize": 30000,
+      "devices": [
+        "1000000000000002"
+      ],
+      "groupingKeyJsonPaths": [
+        "devEUI"
+      ],
+      "detail": "{\n  \"severity\": \"CRITICAL\",\n  \"name\": \"TemperatureAlert\",\n  \"description\": \"Temperature is greater than 40 degree celsius\",\n  \"devEui\": \"@ payloads[0].devEUI @\"\n}",
+      "ruleId": 12,
+      "ruleType" : "condition"
+    },
+    {
+      "ruleConditionJsonPath": "payloads.object.find { true }.doorStatus == 'open'",
+      "deviceIdJsonPath": "devEUI",
+      "devices": [
+        "1000000000000004"
+      ],
+      "groupingKeyJsonPaths": [
+        "devEUI"
+      ],
+      "eventCount": 1,
+      "detail": "{\"severity\":\"CRITICAL\",\"name\":\"DoorStatusAlert\",\"description\":\"Door Status is equal to 'open'\",\"devEui\": \"@ payloads[0].devEUI @\"}",
+      "ruleId": 13,
+      "ruleType" : "condition"
+    },
+    {
+      "ruleConditionJsonPath": "payloads.object.collect { it.humidity}.sum() > 10",
+      "deviceIdJsonPath": "devEUI",
+      "devices": [
+        "1000000000000001"
+      ],
+      "groupingKeyJsonPaths": [
+        "devEUI"
+      ],
+      "eventCount": 5,
+      "detail": "{\"severity\":\"CRITICAL\",\"name\":\"HumidityAlert\",\"description\":\"Humidity is greater than 40 %\",\"devEui\": \"@ payloads[0].devEUI @\"}",
+      "ruleId": 16,
+      "ruleType" : "condition"
+    },
+    {
+      "ruleConditionJsonPath": "payloads.object.collect { it.temperature.toDouble()}.sum() > 5",
+      "deviceIdJsonPath": "devEUI",
+      "windowSize": 30000,
+      "devices": [
+        "1000000000000001"
+      ],
+      "groupingKeyJsonPaths": [
+        "devEUI"
+      ],
+      "detail": "{\"severity\":\"CRITICAL\",\"name\":\"TemperatureAlert\",\"description\":\"Temperature is greater than 40 degree celsius\",\"devEui\": \"@ payloads[0].devEUI @\"}",
+      "ruleId": 17,
+      "ruleType" : "condition"
+    },
+    {
+      "ruleConditionJsonPath": "payloads.object.collect { it.temperature.toDouble()}.sum() > 5",
+      "deviceIdJsonPath": "devEUI",
+      "windowSize": 30000,
+      "devices": [
+        "1000000000000000"
+      ],
+      "groupingKeyJsonPaths": [
+        "devEUI"
+      ],
+      "detail": "{\"severity\":\"CRITICAL\",\"name\":\"TemperatureAlert\",\"description\":\"Temperature is greater than 40 degree celsius\",\"devEui\": \"@ payloads[0].devEUI @\"}",
+      "ruleId": 18,
+      "ruleType" : "condition"
+    },
+    {
+      "ruleConditionJsonPath": "payloads.object.collect { it.humidity}.sum() > 10",
+      "deviceIdJsonPath": "devEUI",
+      "devices": [
+        "1000000000000000"
+      ],
+      "groupingKeyJsonPaths": [
+        "devEUI"
+      ],
+      "eventCount": 5,
+      "detail": "{\"severity\":\"CRITICAL\",\"name\":\"HumidityAlert\",\"description\":\"Humidity is greater than 40 %\",\"devEui\": \"@ payloads[0].devEUI @\",\"devEui\": \"@ payloads[0].devEUI @\"}",
+      "ruleId": 20,
+      "ruleType" : "condition"
+    },
+    {
+      "ruleConditionJsonPath": "payloads.object.collect { it.humidity}.sum() > 10",
+      "deviceIdJsonPath": "devEUI",
+      "devices": [
+        "1000000000000003"
+      ],
+      "groupingKeyJsonPaths": [
+        "devEUI"
+      ],
+      "eventCount": 5,
+      "detail": "{\"severity\":\"CRITICAL\",\"name\":\"HumidityAlert\",\"description\":\"Humidity is greater than 40 %\",\"devEui\": \"@ payloads[0].devEUI @\"}",
+      "ruleId": 22,
+      "ruleType" : "condition"
+    },
+    {
+      "ruleConditionJsonPath": "payloads.object.collect { it.temperature.toDouble()}.sum() > 5",
+      "deviceIdJsonPath": "devEUI",
+      "windowSize": 30000,
+      "devices": [
+        "1000000000000003"
+      ],
+      "groupingKeyJsonPaths": [
+        "devEUI"
+      ],
+      "detail": "{\"severity\":\"CRITICAL\",\"name\":\"TemperatureAlert\",\"description\":\"Temperature is greater than 40 degree celsius\",\"devEui\": \"@ payloads[0].devEUI @\"}",
+      "ruleId": 23,
+      "ruleType" : "condition"
+    },
+    {
+      "ruleConditionJsonPath": "payloads.object.find { true }.waterLeak == true",
+      "deviceIdJsonPath": "devEUI",
+      "devices": [
+        "1000000000000005"
+      ],
+      "groupingKeyJsonPaths": [
+        "devEUI"
+      ],
+      "eventCount": 1,
+      "detail": "{\"severity\":\"CRITICAL\",\"name\":\"WaterLeakAlert\",\"description\":\"Water Leak is equal to true \",\"devEui\": \"@ payloads[0].devEUI @\"}",
+      "ruleId": 24,
+      "ruleType" : "condition"
+    },
+    {
+      "ruleConditionJsonPath": "payloads.object.collect { it.temperature.toDouble()}.sum() > 5",
+      "deviceIdJsonPath": "devEUI",
+      "windowSize": 30000,
+      "devices": [
+        "1000000000000008"
+      ],
+      "groupingKeyJsonPaths": [
+        "devEUI"
+      ],
+      "detail": "{\"severity\":\"CRITICAL\",\"name\":\"TemperatureAlert\",\"description\":\"Temperature is greater than 40 degree celsius\",\"devEui\": \"@ payloads[0].devEUI @\"}",
+      "ruleId": 27,
+      "ruleType" : "condition"
+    },
+    {
+      "ruleConditionJsonPath": "payloads.object.find { true }.Bangalore Geofence ==",
+      "deviceIdJsonPath": "devEUI",
+      "devices": [
+        "1000000000000009"
+      ],
+      "groupingKeyJsonPaths": [
+        "devEUI"
+      ],
+      "eventCount": 1,
+      "detail": "{\"severity\":\"CRITICAL\",\"name\":\"GeofenceAlert\",\"description\":\"Alert me when the sensor exits geofence area\",\"devEui\": \"@ payloads[0].devEUI @\"}",
+      "ruleId": 28,
+      "ruleType" : "condition"
+    },
+    {
+      "ruleConditionJsonPath": "payloads.object.find { true }.inTrip == false",
+      "deviceIdJsonPath": "devEUI",
+      "devices": [
+        "1000000000000009"
+      ],
+      "groupingKeyJsonPaths": [
+        "devEUI"
+      ],
+      "eventCount": 1,
+      "detail": "{\"severity\":\"CRITICAL\",\"name\":\"InTripAlert\",\"description\":\"In Trip is equal to false \",\"devEui\": \"@ payloads[0].devEUI @\"}",
+      "ruleId": 30,
+      "ruleType" : "condition"
+    },
+    {
+      "ruleConditionJsonPath": "payloads.object.find { true }.speed > 64.37376000000042",
+      "deviceIdJsonPath": "devEUI",
+      "devices": [
+        "1000000000000009"
+      ],
+      "groupingKeyJsonPaths": [
+        "devEUI"
+      ],
+      "eventCount": 1,
+      "detail": "{\"severity\":\"CRITICAL\",\"name\":\"SpeedAlert\",\"description\":\"Speed is greater than 40 kmph\",\"devEui\": \"@ payloads[0].devEUI @\"}",
+      "ruleId": 31,
+      "ruleType" : "condition"
+    },
+    {
+      "ruleConditionJsonPath": "payloads.object.find { true }.illuminance > 40",
+      "deviceIdJsonPath": "devEUI",
+      "devices": [
+        "1000000000000007"
+      ],
+      "groupingKeyJsonPaths": [
+        "devEUI"
+      ],
+      "eventCount": 1,
+      "detail": "{\"severity\":\"CRITICAL\",\"name\":\"IlluminanceAlert\",\"description\":\"Illuminance is greater than 40 lx\",\"devEui\": \"@ payloads[0].devEUI @\"}",
+      "ruleId": 32,
+      "ruleType" : "condition"
+    },
+    {
+      "ruleConditionJsonPath": "payloads.object.find { true }.occupancy == 'available'",
+      "deviceIdJsonPath": "devEUI",
+      "devices": [
+        "1000000000000007"
+      ],
+      "groupingKeyJsonPaths": [
+        "devEUI"
+      ],
+      "eventCount": 1,
+      "detail": "{\"severity\":\"CRITICAL\",\"name\":\"OccupancyAlert\",\"description\":\"Occupancy is equal to 'available' \",\"devEui\": \"@ payloads[0].devEUI @\"}",
+      "ruleId": 34,
+      "ruleType" : "condition"
+    },
+    {
+      "ruleConditionJsonPath": "payloads.object.collect { it.temperature.toDouble()}.sum() > 5",
+      "deviceIdJsonPath": "devEUI",
+      "windowSize": 30000,
+      "devices": [
+        "1000000000000007"
+      ],
+      "groupingKeyJsonPaths": [
+        "devEUI"
+      ],
+      "detail": "{\"severity\":\"CRITICAL\",\"name\":\"TemperatureAlert\",\"description\":\"Temperature is greater than 40 degree celsius\",\"devEui\": \"@ payloads[0].devEUI @\"}",
+      "ruleId": 35,
+      "ruleType" : "condition"
+    },
+    {
+      "ruleConditionJsonPath": "payloads.object.find { true }.illuminance > 40",
+      "deviceIdJsonPath": "devEUI",
+      "devices": [
+        "1000000000000006"
+      ],
+      "groupingKeyJsonPaths": [
+        "devEUI"
+      ],
+      "eventCount": 1,
+      "detail": "{\"severity\":\"CRITICAL\",\"name\":\"IlluminanceAlert\",\"description\":\"Illuminance is greater than 40 lx\",\"devEui\": \"@ payloads[0].devEUI @\"}",
+      "ruleId": 36,
+      "ruleType" : "condition"
+    },
+    {
+      "ruleConditionJsonPath": "payloads.findAll { true }.size() > 2",
+      "groupingKeyJsonPaths": [
+        "rxInfo.find {it -> it.gatewayID == '1000000000000007'}.gatewayID"
+      ],
+      "windowSize": 30000,
+      "detail": "{\"severity\":\"CRITICAL\",\"name\":\"Gateway Overloaded\",\"description\":\"Gateway Serving moree than 10 sensor in 30 seconds \",\"devEui\": \"@ payloads[0].devEUI @\"}",
+      "ruleId": 38,
+      "ruleType" : "condition"
+    }
+  ]
+}

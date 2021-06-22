@@ -6,10 +6,12 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.influxdb.client.write.Point;
 import io.restassured.path.json.JsonPath;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
+import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
@@ -18,12 +20,18 @@ import org.apache.flink.streaming.api.functions.co.BroadcastProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.util.Collector;
+import org.jetbrains.annotations.NotNull;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+@Slf4j
 public class IoTAlertingJob_V7 {
     public static Integer WIDEST_ALERT_KEY = Integer.MIN_VALUE;
     public static Integer WIDEST_EVENT_COUNT_KEY = Integer.MIN_VALUE + 1;
@@ -45,7 +53,7 @@ public class IoTAlertingJob_V7 {
 
         BroadcastStream<Rule> ruleBroadcastStream = executionEnvironment
                 .addSource(ruleConsumer)
-                .map((MapFunction<String, Rule>) rule -> objectMapper.readValue(rule, Rule.class))
+                .map(mapToRule(objectMapper))
                 .broadcast(Descriptors.rulesDescriptor);
 
         executionEnvironment
@@ -53,7 +61,7 @@ public class IoTAlertingJob_V7 {
                 .map(mapToEvent())
                 .connect(ruleBroadcastStream)
                 .process(getDynamicKeyFunction())
-                .keyBy(keyed -> keyed.getKey(), TypeInformation.of(String.class))
+                .keyBy(Keyed::getKey, TypeInformation.of(String.class))
                 .connect(ruleBroadcastStream)
                 .process(getDynamicAlertFunction())
                 .map(mapToInfluxPoint())
@@ -63,9 +71,14 @@ public class IoTAlertingJob_V7 {
 
     }
 
+    @NotNull
+    private static MapFunction<String, Rule> mapToRule(ObjectMapper objectMapper) {
+        return rule -> objectMapper.readValue(rule, Rule.class);
+    }
+
 
     private static FlinkKafkaConsumer<String> getRuleConsumer(Properties properties) {
-        return new FlinkKafkaConsumer<>("jsonPath", new SimpleStringSchema(), properties);
+        return new FlinkKafkaConsumer<>("rules", new SimpleStringSchema(), properties);
     }
 
 
@@ -85,12 +98,9 @@ public class IoTAlertingJob_V7 {
 
     private static MapFunction<JsonObject, Point> mapToInfluxPoint() {
         return payload -> Point.measurement("alarm")
-                .addField("name", payload.get("name").getAsString())
-                //.addField("description", payload.get("description").getAsString())
-                //.addField("severity", payload.get("severity").getAsString())
-                .addField("jsonPath", payload.get("jsonPath").getAsString());
-        //.addField("devicePayload", payload.get("devicePayload").getAsString())
-        //.addField("windowSize", payload.get("windowSize").getAsString());
+                .addField("ruleId", payload.get("ruleId").getAsString())
+                //.addField("ruleConditionJsonPath", payload.get("ruleConditionJsonPath").getAsString())
+                .addField("detail", payload.get("detail").getAsString());
     }
 
     private static BroadcastProcessFunction<Event, Rule, Keyed<Event, String, Integer>> getDynamicKeyFunction() {
@@ -103,6 +113,7 @@ public class IoTAlertingJob_V7 {
 
             @Override
             public void processBroadcastElement(Rule rule, Context context, Collector<Keyed<Event, String, Integer>> collector) throws Exception {
+                System.out.println(rule);
                 context.getBroadcastState(Descriptors.rulesDescriptor).put(rule.getRuleId(), rule);
             }
 
@@ -133,10 +144,11 @@ public class IoTAlertingJob_V7 {
             }
 
             private boolean isRuleApplicableForCurrentEvent(Event event, Rule rule) {
+                if (rule.getDevices() == null || rule.getDevices().size() == 0) return true;
                 List<String> deviceList = rule.getDevices();
+
                 String deviceId = JsonPath.from(event.getPayload().toString()).get(rule.getDeviceIdJsonPath());
-                final boolean contains = deviceList.contains(deviceId);
-                return contains;
+                return deviceList.contains(deviceId);
             }
         };
     }
@@ -148,9 +160,21 @@ public class IoTAlertingJob_V7 {
 
             private transient MapState<Long, Event> windowState;
 
+            private transient ValueState<Long> lastTimer;
+
+            private transient ValueState<Event> lastEvent;
+
+            private transient ValueState<Rule> lastAlert;
+
             @Override
             public void open(Configuration parameters) {
                 windowState = getRuntimeContext().getMapState(Descriptors.windowStateDescriptor);
+
+                lastTimer = getRuntimeContext().getState(Descriptors.lastTimerDescriptor);
+
+                lastEvent = getRuntimeContext().getState(Descriptors.lastFlinkDevicePayloadDescriptor);
+
+                lastAlert = getRuntimeContext().getState(Descriptors.lastAlertDescriptor);
             }
 
             @Override
@@ -163,12 +187,28 @@ public class IoTAlertingJob_V7 {
 
                 ctx.timerService().registerProcessingTimeTimer(cleanupTime);
 
-                keyed.getRuleIds().stream().forEach(ruleId -> evaluateRule(ctx, processingTime, ruleId).ifPresent(jsonObject -> collector.collect(jsonObject)));
+                keyed.getRuleIds().stream().map(mapToRule(ctx)).filter(rule -> rule.getRuleType().equals("condition"))
+                        .forEach(ruleId -> evaluateRule(ctx, processingTime, ruleId).ifPresent(jsonObject -> collector.collect(jsonObject)));
+
+                startUnreachableTimer(keyed, ctx);
             }
 
-            private Optional<JsonObject> evaluateRule(ReadOnlyContext ctx, long processingTime, Integer ruleId) {
-                try {
+            private void startUnreachableTimer(Keyed<Event, String, Integer> keyed, ReadOnlyContext ctx) throws Exception {
+                for (Integer ruleId : keyed.getRuleIds()) {
                     Rule rule = ctx.getBroadcastState(Descriptors.rulesDescriptor).get(ruleId);
+                    if (rule.getRuleType().equals("unreachable")) {
+                        long currentTime = ctx.timerService().currentProcessingTime();
+                        long timeoutTime = currentTime + Long.parseLong(rule.getTimeout());
+                        ctx.timerService().registerProcessingTimeTimer(timeoutTime);
+                        lastEvent.update(keyed.getWrapped());
+                        lastTimer.update(timeoutTime);
+                        lastAlert.update(rule);
+                    }
+                }
+            }
+
+            private Optional<JsonObject> evaluateRule(ReadOnlyContext ctx, long processingTime, Rule rule) {
+                try {
 
                     Long windowSize = rule.getWindowSize();
 
@@ -184,15 +224,13 @@ public class IoTAlertingJob_V7 {
                     Boolean isRuleSatisfied = JsonPath.from(payloads.toString()).get(rule.getRuleConditionJsonPath());
                     if (isRuleSatisfied) {
                         JsonObject jsonObject = new JsonObject();
-                        jsonObject.addProperty("name", rule.getName());
-                        jsonObject.addProperty("description", rule.getDescription());
-                        jsonObject.addProperty("severity", rule.getSeverity());
-                        jsonObject.addProperty("jsonPath", rule.getRuleConditionJsonPath());
-                        jsonObject.addProperty("devicePayload", payloads.toString());
+                        jsonObject.addProperty("ruleId", rule.getRuleId());
+                        jsonObject.addProperty("ruleConditionJsonPath", rule.getRuleConditionJsonPath());
+                        jsonObject.addProperty("detail", formatDetail(rule, payloads));
                         return Optional.of(jsonObject);
                     }
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    log.error("Error while evaluating Rule", e);
                 }
                 return Optional.empty();
             }
@@ -212,14 +250,13 @@ public class IoTAlertingJob_V7 {
                 return jsonArray;
             }
 
-
             private JsonArray getEventsBasedOnWindowSize(long currentEventTime, Long windowSize) throws Exception {
                 JsonArray jsonArray = new JsonArray();
                 Long windowStartForEvent = (currentEventTime - windowSize);
-                for (Long stateEventTime : windowState.keys()) {
-                    Event element = windowState.get(stateEventTime);
-                    if (isStateValueInWindow(stateEventTime, windowStartForEvent, currentEventTime)) {
-                        jsonArray.add(element.getPayload());
+                for (Long eventTime : windowState.keys()) {
+                    Event event = windowState.get(eventTime);
+                    if (isStateValueInWindow(eventTime, windowStartForEvent, currentEventTime)) {
+                        jsonArray.add(event.getPayload());
                     }
                 }
                 return jsonArray;
@@ -227,6 +264,7 @@ public class IoTAlertingJob_V7 {
 
             @Override
             public void processBroadcastElement(Rule rule, Context context, Collector<JsonObject> collector) throws Exception {
+                System.out.println(rule);
                 context.getBroadcastState(Descriptors.rulesDescriptor).put(rule.getRuleId(), rule);
                 updateWidestWindowRule(rule, context);
             }
@@ -241,6 +279,20 @@ public class IoTAlertingJob_V7 {
                         cleanupEventTimeWindow.map(window -> timestamp - window);
 
                 cleanupEventTimeThreshold.ifPresent(threshold -> evictAgedElementsFromWindow(threshold, ctx));
+
+                raiseUnreachableAlert(timestamp, out);
+            }
+
+            private void raiseUnreachableAlert(long timestamp, Collector<JsonObject> out) throws IOException {
+                if (lastTimer.value() != null && timestamp == lastTimer.value()) {
+                    Event event = lastEvent.value();
+                    Rule rule = lastAlert.value();
+                    JsonObject jsonObject = new JsonObject();
+                    jsonObject.addProperty("ruleId", rule.getRuleId());
+                    jsonObject.addProperty("timeout", rule.getTimeout());
+                    jsonObject.addProperty("detail", formatDetail(rule, event.payload));
+                    out.collect(jsonObject);
+                }
             }
 
             private void evictAgedElementsFromWindow(Long threshold, OnTimerContext ctx) {
@@ -270,43 +322,68 @@ public class IoTAlertingJob_V7 {
                 }
             }
 
-            private boolean isStateValueInWindow(
-                    Long stateEventTime, Long windowStartForEvent, long currentEventTime) {
+            private boolean isStateValueInWindow(Long stateEventTime, Long windowStartForEvent, long currentEventTime) {
                 return stateEventTime >= windowStartForEvent && stateEventTime <= currentEventTime;
             }
 
-            private void updateWidestWindowRule(Rule rule, Context context)
-                    throws Exception {
-
+            private void updateWidestWindowRule(Rule rule, Context context) throws Exception {
                 Long windowSize = rule.getWindowSize();
                 if (windowSize != null) {
-                    Long currentWindowSize = windowSize;
-                    Rule jsonObject = context.getBroadcastState(Descriptors.rulesDescriptor).get(WIDEST_ALERT_KEY);
-                    if (jsonObject == null) {
-                        context.getBroadcastState(Descriptors.rulesDescriptor).put(WIDEST_ALERT_KEY, jsonObject);
-                    } else {
-                        Long widestWindow = context.getBroadcastState(Descriptors.rulesDescriptor).get(WIDEST_ALERT_KEY).getWindowSize();
-                        if (widestWindow < currentWindowSize) {
-                            context.getBroadcastState(Descriptors.rulesDescriptor).put(WIDEST_ALERT_KEY, jsonObject);
-                        }
-                    }
+                    updateWidestWindowAlert(context, windowSize);
                 } else {
                     Long eventCount = rule.getEventCount();
                     if (eventCount != null) {
-                        Long currentEventCount = eventCount;
-                        Rule jsonObject = context.getBroadcastState(Descriptors.rulesDescriptor).get(WIDEST_EVENT_COUNT_KEY);
-                        if (jsonObject == null) {
-                            context.getBroadcastState(Descriptors.rulesDescriptor).put(WIDEST_EVENT_COUNT_KEY, jsonObject);
-                        } else {
-                            int widestWindow = Math.toIntExact(context.getBroadcastState(Descriptors.rulesDescriptor).get(WIDEST_EVENT_COUNT_KEY).getEventCount());
-                            if (widestWindow < currentEventCount) {
-                                context.getBroadcastState(Descriptors.rulesDescriptor).put(WIDEST_EVENT_COUNT_KEY, jsonObject);
-                            }
-                        }
+                        updateWidestEventCountAlert(context, eventCount);
+                    }
+                }
+            }
+
+            private void updateWidestWindowAlert(Context context, Long windowSize) throws Exception {
+                Rule jsonObject = context.getBroadcastState(Descriptors.rulesDescriptor).get(WIDEST_ALERT_KEY);
+                if (jsonObject == null) {
+                    context.getBroadcastState(Descriptors.rulesDescriptor).put(WIDEST_ALERT_KEY, jsonObject);
+                } else {
+                    Long widestWindow = jsonObject.getWindowSize();
+                    if (widestWindow < windowSize) {
+                        context.getBroadcastState(Descriptors.rulesDescriptor).put(WIDEST_ALERT_KEY, jsonObject);
+                    }
+                }
+            }
+
+            private void updateWidestEventCountAlert(Context context, Long eventCount) throws Exception {
+                Rule jsonObject = context.getBroadcastState(Descriptors.rulesDescriptor).get(WIDEST_EVENT_COUNT_KEY);
+                if (jsonObject == null) {
+                    context.getBroadcastState(Descriptors.rulesDescriptor).put(WIDEST_EVENT_COUNT_KEY, jsonObject);
+                } else {
+                    Long widestWindow = jsonObject.getEventCount();
+                    if (widestWindow < eventCount) {
+                        context.getBroadcastState(Descriptors.rulesDescriptor).put(WIDEST_EVENT_COUNT_KEY, jsonObject);
                     }
                 }
             }
         };
     }
 
+    private static String formatDetail(Rule rule, JsonObject payloads) {
+        Pattern pattern = Pattern.compile("@.*@");
+        String detail = rule.getDetail();
+        Matcher matcher = pattern.matcher(detail);
+        while(matcher.find()) {
+            final String stringToReplace = detail.subSequence(matcher.start(), matcher.end()).toString();
+            String jsonPath = stringToReplace.replace("@", "").trim();
+            detail = detail.replace(stringToReplace,JsonPath.from(payloads.toString()).get(jsonPath));
+        }
+        return detail;
+    }
+
+    @NotNull
+    private static Function<Integer, Rule> mapToRule(KeyedBroadcastProcessFunction<Event, Keyed<Event, String, Integer>, Rule, JsonObject>.ReadOnlyContext ctx) {
+        return ruleId -> {
+            try {
+                return ctx.getBroadcastState(Descriptors.rulesDescriptor).get(ruleId);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        };
+    }
 }
