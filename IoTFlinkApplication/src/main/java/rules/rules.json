@@ -249,24 +249,20 @@
     {
       "ruleConditionJsonPath": "payloads.object.find { true }.illuminance > 40",
       "deviceIdJsonPath": "devEUI",
-      "devices": [
-        "1000000000000006"
-      ],
-      "groupingKeyJsonPaths": [
-        "devEUI"
-      ],
+      "devices": ["1000000000000006"],
+      "groupingKeyJsonPaths": ["devEUI"],
       "eventCount": 1,
       "detail": "{\"severity\":\"CRITICAL\",\"name\":\"IlluminanceAlert\",\"description\":\"Illuminance is greater than 40 lx\",\"devEui\": \"@ payloads[0].devEUI @\"}",
       "ruleId": 36,
       "ruleType" : "condition"
     },
     {
-      "ruleConditionJsonPath": "payloads.findAll { true }.size() > 2",
+      "ruleConditionJsonPath": "payloads.findAll { true }.size() == 200",
       "groupingKeyJsonPaths": [
         "rxInfo.find {it -> it.gatewayID == '1000000000000007'}.gatewayID"
       ],
       "windowSize": 30000,
-      "detail": "{\"severity\":\"CRITICAL\",\"name\":\"Gateway Overloaded\",\"description\":\"Gateway Serving moree than 10 sensor in 30 seconds \",\"devEui\": \"@ payloads[0].devEUI @\"}",
+      "detail": "{\n  \"severity\": \"CRITICAL\",\n  \"name\": \"Gateway Overloaded\",\n  \"description\": \"Gateway Serving moree than 10 sensor in 30 seconds \",\n  \"devEui\": \"@ payloads[0].devEUI @\",\n  \"msgCount\": \"@ payloads.findAll { true }.size() @\"\n}",
       "ruleId": 38,
       "ruleType" : "condition"
     }
