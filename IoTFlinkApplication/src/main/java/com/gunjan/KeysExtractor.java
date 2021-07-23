@@ -26,7 +26,7 @@ public class KeysExtractor {
 
     private static void appendKeyValue(StringBuilder sb, Event devicePayload, String groupingKeyJsonPath)
             throws IllegalAccessException, NoSuchFieldException {
-        final String fieldValue = JsonPath.from(devicePayload.getPayload().toString()).get(groupingKeyJsonPath);
+        final Object fieldValue = JsonPath.from(devicePayload.getPayload().toString()).get(groupingKeyJsonPath);
         sb.append(groupingKeyJsonPath);
         sb.append("=");
         sb.append(fieldValue);

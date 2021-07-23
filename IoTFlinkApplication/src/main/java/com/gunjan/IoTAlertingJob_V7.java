@@ -22,6 +22,9 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.util.Collector;
 import org.jetbrains.annotations.NotNull;
 
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.*;
@@ -42,7 +45,7 @@ public class IoTAlertingJob_V7 {
 
         Properties properties = new Properties();
         properties.setProperty("bootstrap.servers", "localhost:9092");
-        properties.setProperty("group.id", "flink");
+        //properties.setProperty("group.id", "flink");
 
 
         StreamExecutionEnvironment executionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -73,17 +76,26 @@ public class IoTAlertingJob_V7 {
 
     @NotNull
     private static MapFunction<String, Rule> mapToRule(ObjectMapper objectMapper) {
-        return rule -> objectMapper.readValue(rule, Rule.class);
+
+        return rule -> {
+            final Rule rule1 = objectMapper.readValue(rule, Rule.class);
+            System.out.println(rule1);
+            return rule1;
+        };
     }
 
 
     private static FlinkKafkaConsumer<String> getRuleConsumer(Properties properties) {
-        return new FlinkKafkaConsumer<>("rules", new SimpleStringSchema(), properties);
+        final FlinkKafkaConsumer<String> rules = new FlinkKafkaConsumer<>("rules", new SimpleStringSchema(), properties);
+        rules.setStartFromLatest();
+        return rules;
     }
 
 
     private static FlinkKafkaConsumer<String> getEventConsumer(Properties properties) {
-        return new FlinkKafkaConsumer<>("devicePayload", new SimpleStringSchema(), properties);
+        final FlinkKafkaConsumer<String> events = new FlinkKafkaConsumer<>("devicePayload", new SimpleStringSchema(), properties);
+        events.setStartFromLatest();
+        return events;
     }
 
 
@@ -113,7 +125,6 @@ public class IoTAlertingJob_V7 {
 
             @Override
             public void processBroadcastElement(Rule rule, Context context, Collector<Keyed<Event, String, Integer>> collector) throws Exception {
-                System.out.println(rule);
                 context.getBroadcastState(Descriptors.rulesDescriptor).put(rule.getRuleId(), rule);
             }
 
@@ -126,6 +137,7 @@ public class IoTAlertingJob_V7 {
                 for (Map.Entry<Integer, Rule> ruleEntry : rulesState.immutableEntries()) {
                     Rule rule = ruleEntry.getValue();
                     String key = KeysExtractor.getKey(rule.getGroupingKeyJsonPaths(), event);
+                    if(key.contains("false")) continue;
                     Keyed keyed = keys.get(key);
                     if (isRuleApplicableForCurrentEvent(event, rule)) {
                         if (keyed == null) {
@@ -221,7 +233,7 @@ public class IoTAlertingJob_V7 {
                             payloads.add("payloads", getEventsBasedOnEventCount(eventCount));
                         }
                     }
-                    Boolean isRuleSatisfied = JsonPath.from(payloads.toString()).get(rule.getRuleConditionJsonPath());
+                    Boolean isRuleSatisfied = getRuleSatisfied(rule, payloads);
                     if (isRuleSatisfied) {
                         JsonObject jsonObject = new JsonObject();
                         jsonObject.addProperty("ruleId", rule.getRuleId());
@@ -264,7 +276,7 @@ public class IoTAlertingJob_V7 {
 
             @Override
             public void processBroadcastElement(Rule rule, Context context, Collector<JsonObject> collector) throws Exception {
-                System.out.println(rule);
+                //System.out.println(rule);
                 context.getBroadcastState(Descriptors.rulesDescriptor).put(rule.getRuleId(), rule);
                 updateWidestWindowRule(rule, context);
             }
@@ -362,6 +374,31 @@ public class IoTAlertingJob_V7 {
                 }
             }
         };
+    }
+
+    private static Boolean getRuleSatisfied(Rule rule, JsonObject payloads) {
+        String expression = rule.getRuleConditionJsonPath();
+        Pattern p = Pattern.compile("\"([^\"]*)\"");
+        Matcher m = p.matcher(expression);
+        boolean found = false;
+        while (m.find()) {
+            final String jsonPath = m.group(1);
+            final Boolean o = JsonPath.from(payloads.toString()).get(jsonPath);
+            expression = expression.replaceFirst("\"([^\"]*)\"",o.toString());
+            found = true;
+        }
+
+        if(!found){
+            return (Boolean) JsonPath.from(payloads.toString()).get(expression);
+        }
+        ScriptEngineManager factory = new ScriptEngineManager();
+        ScriptEngine engine = factory.getEngineByName("JavaScript");
+        try {
+            return (Boolean) engine.eval(expression);
+        } catch (ScriptException e) {
+           e.printStackTrace();
+        }
+        return false;
     }
 
     private static String formatDetail(Rule rule, JsonObject payloads) {

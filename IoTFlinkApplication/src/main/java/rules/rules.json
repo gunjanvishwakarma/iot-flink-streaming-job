@@ -4,14 +4,14 @@
       "ruleConditionJsonPath": "payloads.object.find { true }.inactivityTimeout > 1450",
       "deviceIdJsonPath": "devEUI",
       "devices": [
-        "1000000000000001",
-        "1000000000000002",
-        "1000000000000003",
-        "1000000000000004",
-        "1000000000000005",
-        "1000000000000006",
-        "1000000000000007",
-        "1000000000000008"
+        "3000100000000001",
+        "3000200000000002",
+        "3000300000000003",
+        "3000400000000004",
+        "3000500000000005",
+        "3000600000000006",
+        "3000700000000007",
+        "3000800000000008"
       ],
       "groupingKeyJsonPaths": [
         "devEUI"
@@ -27,7 +27,7 @@
       "deviceIdJsonPath": "devEUI",
       "windowSize": 30000,
       "devices": [
-        "1000000000000002"
+        "3000200000000002"
       ],
       "groupingKeyJsonPaths": [
         "devEUI"
@@ -40,7 +40,7 @@
       "ruleConditionJsonPath": "payloads.object.find { true }.doorStatus == 'open'",
       "deviceIdJsonPath": "devEUI",
       "devices": [
-        "1000000000000004"
+        "3000400000000004"
       ],
       "groupingKeyJsonPaths": [
         "devEUI"
@@ -54,7 +54,7 @@
       "ruleConditionJsonPath": "payloads.object.collect { it.humidity}.sum() > 10",
       "deviceIdJsonPath": "devEUI",
       "devices": [
-        "1000000000000001"
+        "3000100000000001"
       ],
       "groupingKeyJsonPaths": [
         "devEUI"
@@ -69,7 +69,7 @@
       "deviceIdJsonPath": "devEUI",
       "windowSize": 30000,
       "devices": [
-        "1000000000000001"
+        "3000100000000001"
       ],
       "groupingKeyJsonPaths": [
         "devEUI"
@@ -83,7 +83,7 @@
       "deviceIdJsonPath": "devEUI",
       "windowSize": 30000,
       "devices": [
-        "1000000000000000"
+        "3000000000000000"
       ],
       "groupingKeyJsonPaths": [
         "devEUI"
@@ -96,7 +96,7 @@
       "ruleConditionJsonPath": "payloads.object.collect { it.humidity}.sum() > 10",
       "deviceIdJsonPath": "devEUI",
       "devices": [
-        "1000000000000000"
+        "3000000000000000"
       ],
       "groupingKeyJsonPaths": [
         "devEUI"
@@ -110,7 +110,7 @@
       "ruleConditionJsonPath": "payloads.object.collect { it.humidity}.sum() > 10",
       "deviceIdJsonPath": "devEUI",
       "devices": [
-        "1000000000000003"
+        "3000300000000003"
       ],
       "groupingKeyJsonPaths": [
         "devEUI"
@@ -125,7 +125,7 @@
       "deviceIdJsonPath": "devEUI",
       "windowSize": 30000,
       "devices": [
-        "1000000000000003"
+        "3000300000000003"
       ],
       "groupingKeyJsonPaths": [
         "devEUI"
@@ -138,7 +138,7 @@
       "ruleConditionJsonPath": "payloads.object.find { true }.waterLeak == true",
       "deviceIdJsonPath": "devEUI",
       "devices": [
-        "1000000000000005"
+        "3000500000000005"
       ],
       "groupingKeyJsonPaths": [
         "devEUI"
@@ -153,7 +153,7 @@
       "deviceIdJsonPath": "devEUI",
       "windowSize": 30000,
       "devices": [
-        "1000000000000008"
+        "3000800000000008"
       ],
       "groupingKeyJsonPaths": [
         "devEUI"
@@ -166,7 +166,7 @@
       "ruleConditionJsonPath": "payloads.object.find { true }.Bangalore Geofence ==",
       "deviceIdJsonPath": "devEUI",
       "devices": [
-        "1000000000000009"
+        "3000900000000009"
       ],
       "groupingKeyJsonPaths": [
         "devEUI"
@@ -180,7 +180,7 @@
       "ruleConditionJsonPath": "payloads.object.find { true }.inTrip == false",
       "deviceIdJsonPath": "devEUI",
       "devices": [
-        "1000000000000009"
+        "3000900000000009"
       ],
       "groupingKeyJsonPaths": [
         "devEUI"
@@ -194,7 +194,7 @@
       "ruleConditionJsonPath": "payloads.object.find { true }.speed > 64.37376000000042",
       "deviceIdJsonPath": "devEUI",
       "devices": [
-        "1000000000000009"
+        "3000900000000009"
       ],
       "groupingKeyJsonPaths": [
         "devEUI"
@@ -208,7 +208,7 @@
       "ruleConditionJsonPath": "payloads.object.find { true }.illuminance > 40",
       "deviceIdJsonPath": "devEUI",
       "devices": [
-        "1000000000000007"
+        "3000700000000007"
       ],
       "groupingKeyJsonPaths": [
         "devEUI"
@@ -222,7 +222,7 @@
       "ruleConditionJsonPath": "payloads.object.find { true }.occupancy == 'available'",
       "deviceIdJsonPath": "devEUI",
       "devices": [
-        "1000000000000007"
+        "3000700000000007"
       ],
       "groupingKeyJsonPaths": [
         "devEUI"
@@ -237,7 +237,7 @@
       "deviceIdJsonPath": "devEUI",
       "windowSize": 30000,
       "devices": [
-        "1000000000000007"
+        "3000700000000007"
       ],
       "groupingKeyJsonPaths": [
         "devEUI"
@@ -249,7 +249,7 @@
     {
       "ruleConditionJsonPath": "payloads.object.find { true }.illuminance > 40",
       "deviceIdJsonPath": "devEUI",
-      "devices": ["1000000000000006"],
+      "devices": ["3000600000000006"],
       "groupingKeyJsonPaths": ["devEUI"],
       "eventCount": 1,
       "detail": "{\"severity\":\"CRITICAL\",\"name\":\"IlluminanceAlert\",\"description\":\"Illuminance is greater than 40 lx\",\"devEui\": \"@ payloads[0].devEUI @\"}",
@@ -259,7 +259,7 @@
     {
       "ruleConditionJsonPath": "payloads.findAll { true }.size() == 200",
       "groupingKeyJsonPaths": [
-        "rxInfo.find {it -> it.gatewayID == '1000000000000007'}.gatewayID"
+        "rxInfo.find {it -> it.gatewayID == '1000000000000003'}.gatewayID"
       ],
       "windowSize": 30000,
       "detail": "{\n  \"severity\": \"CRITICAL\",\n  \"name\": \"Gateway Overloaded\",\n  \"description\": \"Gateway Serving moree than 10 sensor in 30 seconds \",\n  \"devEui\": \"@ payloads[0].devEUI @\",\n  \"msgCount\": \"@ payloads.findAll { true }.size() @\"\n}",

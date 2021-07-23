@@ -18,12 +18,16 @@ public class PublishRule {
     private static ObjectMapper objectMapper = new ObjectMapper();
 
     public static void main(String[] args) throws IOException {
-        Rules rules = objectMapper.readValue(new File("src/main/java/rules/rules.json"), Rules.class);
+        Rules rules = objectMapper.readValue(new File("src/main/java/rules/shapes-rules.json"), Rules.class);
+        //Rules rules = objectMapper.readValue(new File("src/main/java/rules/rules.json"), Rules.class);
         rules.getData().stream().forEach(rule -> {
             try {
                 System.out.println(rule);
                 createProducer().send(new ProducerRecord("rules",objectMapper.writeValueAsString(rule)));
+                Thread.sleep(1000);
             } catch (JsonProcessingException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         });
