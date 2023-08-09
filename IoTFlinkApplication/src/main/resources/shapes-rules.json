@@ -1,0 +1,28 @@
+{
+  "data" : [
+    {
+      "ruleConditionJsonPath": "payloads.findAll { true }.x.sum() > 8",
+      "groupingKeyJsonPaths": [ "shape == 'circle'"],
+      "windowSize": "3000",
+      "ruleType" : "condition",
+      "detail": "Sum of x > 8 (shape circle) rule 1",
+      "ruleId":1
+    },
+    {
+      "ruleConditionJsonPath": "\"payloads.findAll { true }.x.sum() > 4\" && \"payloads.findAll { true }.y.sum() > 6\"",
+      "groupingKeyJsonPaths": [ "border == 'red'"],
+      "windowSize": "10000",
+      "ruleType" : "condition",
+      "detail": "Sum of x > 4 and Sum of y > 6 (border red) rule 2",
+      "ruleId":2
+    },
+    {
+      "ruleConditionJsonPath": "\"payloads.findAll { true }.x.sum() >= 4\" || \"payloads.findAll { true }.y.sum() > 5\"",
+      "groupingKeyJsonPaths": [ "border == 'red'","color == 'violet'"],
+      "windowSize": "30000",
+      "ruleType" : "condition",
+      "detail": "Sum of x >= 4 or Sum of y > 5 (border red, color violet) rule 3",
+      "ruleId":3
+    }
+  ]
+}
