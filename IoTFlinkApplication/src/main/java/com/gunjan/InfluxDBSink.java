@@ -31,9 +31,9 @@ public class InfluxDBSink extends RichSinkFunction<Point> {
     @Override
     public void open(Configuration parameters) throws Exception {
         super.open(parameters);
-            final String url = "https://us-west-2-1.aws.cloud2.influxdata.com";
-        final char[] tokens = "tdVBkR3XwJNM-4d3kPaj1TEipXoCoN5aWPCvY9GU9lW4VAa3xtm1FX3Xy0zfKYdnYAQzLSZs-9OHZuN6ayVGWA==".toCharArray();
-        final String org = "175075e7d8269b9f";
+        final String url = "http://localhost:8086";
+        final char[] tokens = "gVmZTgfbLYCUd4XIGXUXiDQfQiI3e2voPpC20SJBcYx_3V22N9z3n9VeuTHtyBDd_o4nLk5WDyHSYNNeRoLghQ==".toCharArray();
+        final String org = "gunjan-org";
         final String bucket = "gunjan-bucket";
         InfluxDBClient influxDBClient = InfluxDBClientFactory.create(url, tokens, org, bucket);
         this.influxDBClient = influxDBClient;

@@ -86,14 +86,14 @@ public class IoTAlertingJob_V7 {
 
 
     private static FlinkKafkaConsumer<String> getRuleConsumer(Properties properties) {
-        final FlinkKafkaConsumer<String> rules = new FlinkKafkaConsumer<>("rules", new SimpleStringSchema(), properties);
+            final FlinkKafkaConsumer<String> rules = new FlinkKafkaConsumer<>("rules", new SimpleStringSchema(), properties);
         rules.setStartFromLatest();
         return rules;
     }
 
 
     private static FlinkKafkaConsumer<String> getEventConsumer(Properties properties) {
-        final FlinkKafkaConsumer<String> events = new FlinkKafkaConsumer<>("devicePayload", new SimpleStringSchema(), properties);
+        final FlinkKafkaConsumer<String> events = new FlinkKafkaConsumer<>("events", new SimpleStringSchema(), properties);
         events.setStartFromLatest();
         return events;
     }
