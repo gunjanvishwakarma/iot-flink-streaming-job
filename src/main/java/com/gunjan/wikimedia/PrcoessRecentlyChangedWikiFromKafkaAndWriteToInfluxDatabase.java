@@ -92,10 +92,10 @@ public class PrcoessRecentlyChangedWikiFromKafkaAndWriteToInfluxDatabase
                         return element.f2.getTime();
                     }
                 })
-                .timeWindowAll(Time.seconds(1), Time.seconds(5))
+                .timeWindowAll(Time.seconds(5))
                 .trigger(ContinuousProcessingTimeTrigger.of(Time.seconds(5)))
                 .maxBy(1)
-                .map(new MapToTrendingHashTagInfluxDBPoint2())
+                .map(new MapToMostRecentChangedWikiInfluxDBPoint1())
                 .addSink(new InfluxDBSink());
 
         // Trending Hashtag approach 2
@@ -140,7 +140,7 @@ public class PrcoessRecentlyChangedWikiFromKafkaAndWriteToInfluxDatabase
                         out.collect(new Tuple3(currentHashTag, currentHashTagCount, new Timestamp(window.getEnd())));
                     }
                 })
-                .map(new MapToTrendingHashTagInfluxDBPoint1())
+                .map(new MapToMostRecentChangedWikiInfluxDBPoint2())
                 .addSink(new InfluxDBSink());
 
         // Total Change Wikimedia count - triggered every 5 seconds
@@ -214,21 +214,21 @@ public class PrcoessRecentlyChangedWikiFromKafkaAndWriteToInfluxDatabase
     }
     
     
-    private static class MapToTrendingHashTagInfluxDBPoint1 extends RichMapFunction<Tuple3<String,Long,Timestamp>, Point>
+    private static class MapToMostRecentChangedWikiInfluxDBPoint1 extends RichMapFunction<Tuple3<String,Long,Timestamp>, Point>
     {
         @Override
         public Point map(Tuple3<String,Long,Timestamp> trendingHashTag) throws Exception
         {
-            return Point.measurement("TrendingHashTagFlink1").time(trendingHashTag.f2.getTime(), WritePrecision.MS).addField("hashtag", trendingHashTag.f0).addField("count", trendingHashTag.f1);
+            return Point.measurement("MostRecentChangedWiki1").time(trendingHashTag.f2.getTime(), WritePrecision.MS).addField("hashtag", trendingHashTag.f0).addField("count", trendingHashTag.f1);
         }
     }
     
-    private static class MapToTrendingHashTagInfluxDBPoint2 extends RichMapFunction<Tuple3<String,Long,Timestamp>,Point>
+    private static class MapToMostRecentChangedWikiInfluxDBPoint2 extends RichMapFunction<Tuple3<String,Long,Timestamp>,Point>
     {
         @Override
         public Point map(Tuple3<String,Long,Timestamp> trendingHashTag) throws Exception
         {
-            return Point.measurement("TrendingHashTagFlink2").time(trendingHashTag.f2.getTime(), WritePrecision.MS) .addField("hashtag", trendingHashTag.f0).addField("count", trendingHashTag.f1);
+            return Point.measurement("MostRecentChangedWiki2").time(trendingHashTag.f2.getTime(), WritePrecision.MS) .addField("hashtag", trendingHashTag.f0).addField("count", trendingHashTag.f1);
         }
     }
     
