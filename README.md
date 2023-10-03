@@ -45,6 +45,7 @@ kafka-topics --bootstrap-server localhost:9092 --topic rules --create
 
 ```bash
 brew install influxdb
+brew services start influxdb
 ```
 
 8. **Access InfluxDB UI:** Open InfluxDB UI in your browser at http://localhost:8086.

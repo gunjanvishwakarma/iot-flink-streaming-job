@@ -140,7 +140,7 @@
                             <transformers>
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.gunjan.IoTAlertingJob_V1</mainClass>
+                                    <mainClass>com.gunjan.alerting.IoTAlertingJob_V1</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>
