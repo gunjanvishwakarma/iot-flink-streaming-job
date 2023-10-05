@@ -63,7 +63,7 @@ public class IoTAlertingJob_V7 {
                 .addSource(eventConsumer)
                 .map(mapToEvent())
                 .connect(ruleBroadcastStream)
-                .process(getDynamicKeyFunction())
+                .process(getDynamicKeyFunction()) // Fork the event based on grouping key
                 .keyBy(Keyed::getKey, TypeInformation.of(String.class))
                 .connect(ruleBroadcastStream)
                 .process(getDynamicAlertFunction())
@@ -125,6 +125,7 @@ public class IoTAlertingJob_V7 {
 
             @Override
             public void processBroadcastElement(Rule rule, Context context, Collector<Keyed<Event, String, Integer>> collector) throws Exception {
+                // Map State to keep the rules
                 context.getBroadcastState(Descriptors.rulesDescriptor).put(rule.getRuleId(), rule);
             }
 
@@ -378,6 +379,10 @@ public class IoTAlertingJob_V7 {
 
     private static Boolean getRuleSatisfied(Rule rule, JsonObject payloads) {
         String expression = rule.getRuleConditionJsonPath();
+        // The elow regex is to find and capture text enclosed in double quotation marks (").
+        // Ex: "payloads.findAll { true }.x.sum() > 4" && "payloads.findAll { true }.y.sum() > 6"
+        // match 1: payloads.findAll { true }.x.sum() > 4
+        // match 2: payloads.findAll { true }.y.sum() > 6
         Pattern p = Pattern.compile("\"([^\"]*)\"");
         Matcher m = p.matcher(expression);
         boolean found = false;
